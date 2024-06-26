@@ -1,0 +1,303 @@
+---
+title: |
+  ```{=latex}
+  \textcolor{black}{\textbf{Practical Machine Learning Quiz 4}}
+  ```
+output:
+  bookdown::pdf_book:
+    toc: no
+author: T.S.
+date: "`r Sys.Date()`"
+---
+
+Solutions can be found here, but contain some errors and do not work with recent versions of respective R-packages https://rpubs.com/cheyu/pmlQ4
+
+# Question 1
+
+For this quiz we will be using several R packages. R package versions change over time, the right answers have been checked using the following versions of the packages. 
+
+AppliedPredictiveModeling: v1.1.6
+
+caret: v6.0.47
+
+ElemStatLearn: v2012.04-0
+
+pgmm: v1.1
+
+rpart: v4.1.8
+
+gbm: v2.1
+
+lubridate: v1.3.3
+
+forecast: v5.6
+
+e1071: v1.6.4
+
+If you aren't using these versions of the packages, your answers may not exactly match the right answer, but hopefully should be close.
+
+Load the vowel.train and vowel.test data sets:
+
+```{r q1}
+library(ElemStatLearn)
+library(caret)
+
+data(vowel.train)
+data(vowel.test)
+
+vowel.train$y <- as.factor(vowel.train$y)
+vowel.test$y <- as.factor(vowel.test$y)
+
+head(vowel.train)
+
+levels(vowel.train$y)
+
+set.seed(33833)
+
+modFit_rf <- train(y~ .,data=vowel.train, method="rf")
+
+modFit_gbm <- train(y ~ ., data=vowel.train, method="gbm", verbose = FALSE)
+
+pred_rf <- predict(modFit_rf, vowel.test)
+
+pred_gbm <- predict(modFit_gbm, vowel.test)
+
+confusionMatrix(pred_rf, vowel.test$y)$overall[1]
+
+confusionMatrix(pred_gbm, vowel.test$y)$overall[1]
+
+predDF <- data.frame(pred_rf, pred_gbm, y = vowel.test$y)
+# Accuracy among the test set samples where the two methods agree
+sum(pred_rf[predDF$pred_rf == predDF$pred_gbm] == 
+        predDF$y[predDF$pred_rf == predDF$pred_gbm]) / 
+    sum(predDF$pred_rf == predDF$pred_gbm)
+
+```
+
+
+Set the variable y to be a factor variable in both the training and test set. Then set the seed to 33833. Fit (1) a random forest predictor relating the factor variable y to the remaining variables and (2) a boosted predictor using the "gbm" method. Fit these both with the train() command in the caret package. 
+
+What are the accuracies for the two approaches on the test data set? What is the accuracy among the test set samples where the two methods agree? 
+
+1 point
+
+RF Accuracy =  0.6082 
+
+GBM Accuracy = 0.5152  
+
+Agreement Accuracy = 0.6361
+
+
+RF Accuracy =  0.9881 
+
+GBM Accuracy = 0.8371 
+
+Agreement Accuracy = 0.9983
+
+
+RF Accuracy =  0.9987 
+
+GBM Accuracy = 0.5152  
+
+Agreement Accuracy = 0.9985
+
+
+RF Accuracy =  0.6082 
+
+GBM Accuracy = 0.5152  
+
+Agreement Accuracy = 0.5152
+
+# Question 2
+
+Load the Alzheimer's data using the following commands
+
+```{r q2}
+library(caret)
+
+library(gbm)
+
+set.seed(3433)
+
+library(AppliedPredictiveModeling)
+
+data(AlzheimerDisease)
+
+AlzData <- data.frame(diagnosis, predictors)
+
+inTrain <-  createDataPartition(AlzData$diagnosis, p = 0.75)[[1]]
+
+training <- AlzData[inTrain,]
+testing <- AlzData[-inTrain,]
+
+set.seed(62433)
+
+Alz_rf <- train(diagnosis ~., data = training, method = "rf")
+Alz_gbm <- train(diagnosis ~., data = training, method = "gbm", verbose = FALSE)
+Alz_lda <- train(diagnosis ~., data = training, method = "lda")
+
+Alz_pred_rf <- predict(Alz_rf, newdata = testing)
+Alz_pred_gbm <- predict(Alz_gbm, newdata = testing)
+Alz_pred_lda <- predict(Alz_lda, newdata = testing)
+
+Alz_pred_stack <- data.frame(Alz_pred_rf, Alz_pred_gbm, Alz_pred_lda, diagnosis = testing$diagnosis)
+
+Alz_comb <- train(diagnosis ~., data = Alz_pred_stack, method = "rf")
+
+Alz_pred_comb <- predict(Alz_comb, newdata = Alz_pred_stack)
+
+confusionMatrix(Alz_pred_rf, testing$diagnosis)$overall[1]
+confusionMatrix(Alz_pred_gbm, testing$diagnosis)$overall[1]
+confusionMatrix(Alz_pred_lda, testing$diagnosis)$overall[1]
+confusionMatrix(Alz_pred_comb, testing$diagnosis)$overall[1]
+
+```
+
+
+Set the seed to 62433 and predict diagnosis with all the other variables using a random forest ("rf"), boosted trees ("gbm") and linear discriminant analysis ("lda") model. Stack the predictions together using random forests ("rf"). What is the resulting accuracy on the test set? Is it better or worse than each of the individual predictions? 
+
+1 point
+
+Stacked Accuracy: 0.69 is better than all three other methods
+
+
+Stacked Accuracy: 0.76 is better than lda but not random forests or boosting. 
+
+
+Stacked Accuracy: 0.80 is better than random forests and lda and the same as boosting. 
+
+
+Stacked Accuracy: 0.80 is better than all three other methods
+
+# Question 3
+
+Load the concrete data with the commands:
+
+```{r q3}
+
+set.seed(3523)
+
+library(AppliedPredictiveModeling)
+library(elasticnet)
+
+data(concrete)
+
+inTrain = createDataPartition(concrete$CompressiveStrength, p = 3/4)[[1]]
+
+training = concrete[ inTrain,]
+testing = concrete[-inTrain,]
+
+set.seed(233)
+
+concrete_lasso <- train(CompressiveStrength ~ ., data = training, method = "lasso")
+
+plot.enet(concrete_lasso$finalModel, xvar = "penalty", use.color = TRUE)
+
+```
+
+
+Set the seed to 233 and fit a lasso model to predict Compressive Strength. Which variable is the last coefficient to be set to zero as the penalty increases? (Hint: it may be useful to look up ?plot.enet). 
+
+1 point
+
+Water
+
+
+Cement
+
+
+Age
+
+
+CoarseAggregate
+
+# Question 4
+Load the data on the number of visitors to the instructors blog from here: 
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/gaData.csv
+
+Using the commands:
+
+```{r q4}
+library(lubridate) # For year() function below
+library(forecast)
+
+dat = read.csv("gaData.csv")
+
+training = dat[year(dat$date) < 2012,]
+
+testing = dat[(year(dat$date)) > 2011,]
+
+tstrain = ts(training$visitsTumblr)
+
+visits_model <- bats(tstrain)
+
+visits_forecast <- forecast(visits_model, level = 0.95, h = dim(testing)[1])
+
+percent_within <- sum(visits_forecast$lower < testing$visitsTumblr & testing$visitsTumblr < visits_forecast$upper) / dim(testing)[1] *100
+
+percent_within
+
+```
+
+Fit a model using the bats() function in the forecast package to the training time series. Then forecast this model for the remaining time points. For how many of the testing points is the true value within the 95% prediction interval bounds? 
+
+1 point
+
+93%
+
+
+96%
+
+
+95%
+
+
+94%
+
+# Question 5
+Load the concrete data with the commands:
+
+```{r q5}
+
+set.seed(3523)
+
+library(AppliedPredictiveModeling)
+
+data(concrete)
+
+inTrain = createDataPartition(concrete$CompressiveStrength, p = 3/4)[[1]]
+
+training = concrete[ inTrain,]
+testing = concrete[-inTrain,]
+
+set.seed(325)
+
+library(e1071)
+
+concrete_svm <- svm(CompressiveStrength ~., data = training)
+concrete_pred_svm <- predict(concrete_svm, newdata = testing)
+accuracy(concrete_pred_svm, testing$CompressiveStrength)
+
+RMSE <- sqrt(mean((testing$CompressiveStrength - concrete_pred_svm)^2))
+
+RMSE
+
+
+```
+
+
+Set the seed to 325 and fit a support vector machine using the e1071 package to predict Compressive Strength using the default settings. Predict on the testing set. What is the RMSE? 
+
+1 point
+
+107.44
+
+
+6.72
+
+
+35.59
+
+
+6.93
