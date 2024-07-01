@@ -8,4 +8,110 @@ date: "`r Sys.Date()`"
 
 # Summary
 
-Objective of the investigation.
+Objective of the analysis is the prediction of five different classes of of barbell lifts performed by six test-participants based on data from accelerometers attached to the belt, forearm, arm, and dumbbell. A training data set with   
+
+```{r packages, echo=FALSE}
+library(caret)
+library(randomForest)
+library(ggplot2)
+library(ranger)
+```
+
+```{r read}
+
+train <- read.csv( "~/DataScience/PracticalMachineLearning/pml-training.csv", na.strings = c("NA", "#DIV/0!", ""))
+
+test <- read.csv( "~/DataScience/PracticalMachineLearning/pml-testing.csv", na.strings = c("NA", "#DIV/0!", ""))
+
+test_clean <- names(test[,colSums(is.na(test)) == 0]) [8:59]
+clean_train <- train[,c(test_clean,"classe")]
+clean_test <- test[,c(test_clean,"problem_id")]
+
+clean_train$classe <- as.factor(clean_train$classe)
+
+clean_train[,1:52] <- sapply(clean_train[,1:52], function(x) scale(x, scale=FALSE))
+clean_test[,1:52] <- sapply(clean_test[,1:52], function(x) scale(x, scale=FALSE))
+
+
+head(clean_train)
+
+featurePlot(x = clean_train[, 1:12], y = clean_train$classe,
+            scales = list(x = list(relation="free"), 
+                          y = list(relation="free")))
+
+```
+
+```{r dpart}
+
+set.seed(1234)
+
+inTrain <- createDataPartition(clean_train$classe, p=0.7, list=FALSE)
+training <- clean_train[inTrain,]
+testing <- clean_train[-inTrain,]
+dim(training)
+
+## [1] 13737    53
+
+dim(testing)
+
+## [1] 5885   53
+
+
+```
+
+
+```{r ranger}
+
+set.seed(1234)
+
+rg_model <- ranger(classe ~ ., data = training)
+predict_rg <- predict(rg_model, testing)
+
+predict_rg
+
+confusionMatrix(predict_rg$predictions, testing$classe)
+
+
+```
+
+
+```{r gbm}
+
+if(FALSE){
+       
+set.seed(1234)
+
+gbm_model <- train(classe~ ., data = training, method="gbm")
+predict_gbm <- predict(gbm_model, testing)
+confusionMatrix(predict_gbm, testing$classe)
+
+predict_gbm <- predict(gbm_model, clean_test, type ="raw")
+predict_gbm
+
+}
+
+```
+
+
+```{r rf}
+
+random_forest_mod<-randomForest(classe~ ., data=training, ntree=500)
+set.seed(300)
+predict<-predict(random_forest_mod, testing, type ="class")
+confusionMatrix(predict,testing$classe)
+
+```
+```{r predict}
+
+predict<-predict(random_forest_mod, clean_test, type ="class")
+predict
+
+##  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 
+##  B  A  B  A  A  E  D  B  A  A  B  C  B  A  E  E  A  B  B  B 
+## Levels: A B C D E
+
+```
+
+
+
+
