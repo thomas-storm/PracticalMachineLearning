@@ -1,0 +1,90 @@
+---
+title: "Practical Machine Learning Write-up" 
+
+output: bookdown::html_document2
+author: T.S.
+date: "`r Sys.Date()`"
+---
+
+```{r, setup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = '', fig.width = 6, fig.height = 6
+)
+```
+
+# Summary
+
+Objective of the analysis is the prediction of five different classes of of barbell lifts performed by six test-participants based on data from accelerometers attached to the belt, forearm, arm, and dumbbell. A training data set with 19622  
+
+```{r packages, echo=FALSE, message=FALSE, warning=FALSE}
+
+    library(tidyverse)
+    library(ggplot2)
+    library(visdat)  
+    library(caret)
+    library(recipes)
+    library(readr)
+    library(rsample)
+    library(data.table)
+    library(doParallel)
+```
+
+```{r read}
+
+        pml.training <- read_csv("pml-training.csv", na=c("", "#DIV/0!", "NA"))
+        pml.testing  <- read_csv("pml-testing.csv", na=c("", "#DIV/0!", "NA"))
+        
+        non.na.cols <- names(pml.testing[,colSums(is.na(pml.testing)) == 0])[8:59]
+        pml.training <- pml.training[1:250, c(non.na.cols, "classe")]
+
+```
+
+```{r split}
+
+set.seed(1967)
+
+split <- initial_split(pml.training, prop = 0.75, strata = "classe")
+
+pml.train  <- training(split)
+pml.test   <- testing(split)
+
+```
+
+```{r data.prep, echo=TRUE}
+
+blueprint <- recipe(classe ~ ., data = pml.train) %>%
+  step_zv(all_predictors()) %>%
+  step_nzv(all_predictors())  %>%
+  step_impute_bag(all_predictors()) %>%
+  step_center(all_numeric(), -all_outcomes()) %>%
+  step_scale(all_numeric(), -all_outcomes()) %>%
+  step_pca(all_numeric(), -all_outcomes())
+
+blueprint
+
+```
+
+```{r train}
+
+cl <- makePSOCKcluster(6)
+registerDoParallel(cl)
+
+cv <- trainControl(method = "repeatedcv", number = 5, repeats = 2)
+hyper_grid <- expand.grid(k = seq(2, 25, by = 1))
+
+knn_fit <- train(
+  blueprint, 
+  data = pml.train, 
+  method = "knn", 
+  trControl = cv, 
+  tuneGrid = hyper_grid,
+  metric = "Accuracy"
+)
+
+stopCluster(cl)
+
+knn_fit
+
+```
+
+

@@ -28,10 +28,7 @@ theme_set(theme_light())
 
 # Load Data
 suppressWarnings({
-pml_training <- readr::read_csv("pml-training.csv", 
-                                na=c("", "#DIV/0!", "NA"), 
-                                progress = F,
-                                col_types = cols())
+
 
 pml_testing  <- readr::read_csv("pml-testing.csv",
                                 na=c("", "#DIV/0!", "NA"), 

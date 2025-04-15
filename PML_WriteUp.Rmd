@@ -19,9 +19,9 @@ library(ranger)
 
 ```{r read}
 
-train <- read.csv( "~/DataScience/PracticalMachineLearning/pml-training.csv", na.strings = c("NA", "#DIV/0!", ""))
+train <- read.csv( "C:/Users/STORMTH1/Documents/DataScience/PracticalMachineLearning/pml-training.csv", na.strings = c("NA", "#DIV/0!", ""))
 
-test <- read.csv( "~/DataScience/PracticalMachineLearning/pml-testing.csv", na.strings = c("NA", "#DIV/0!", ""))
+test <- read.csv( "C:/Users/STORMTH1/Documents/DataScience/PracticalMachineLearning/pml-testing.csv", na.strings = c("NA", "#DIV/0!", ""))
 
 test_clean <- names(test[,colSums(is.na(test)) == 0]) [8:59]
 clean_train <- train[,c(test_clean,"classe")]
@@ -77,7 +77,7 @@ confusionMatrix(predict_rg$predictions, testing$classe)
 
 ```{r gbm}
 
-if(FALSE){
+if(TRUE){
        
 set.seed(1234)
 
