@@ -1,5 +1,5 @@
 ---
-title: "Write-up for Practical Machine Learning" 
+title: "Write-up for Practical Machine Learning - Published" 
 
 output: bookdown::html_document2
 author: Thomas S.
