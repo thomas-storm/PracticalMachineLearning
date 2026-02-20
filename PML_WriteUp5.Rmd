@@ -1,0 +1,165 @@
+---
+title: "Write-up for Practical Machine Learning" 
+
+output: bookdown::html_document2
+author: Thomas S.
+date: "`r Sys.Date()`"
+bibliography: ["acm_2459236.2459256.bib"]
+biblio-style: "acm"
+link-citations: true
+---
+
+# Summary
+
+Objective of the analysis is the prediction of five different classes of of barbell lifts performed by six test-participants based on data from accelerometers attached to the belt, forearm, arm, and dumbbell. A larger data set for model training and validation purposes and a quiz data set with twenty data sets for prediction was used.  Data were read into R, preprocessed, and different classification algorithms were employed using the caret package to identify approach with good prediction accuracy. The quiz data set was analysed with a Random Forest algorithm which had the best prediction accuracy.
+
+```{r packages, echo=FALSE, warning=FALSE, message=FALSE}
+
+library(knitr)
+library(caret)
+
+```
+# Data loading and preprocessing
+
+The data were originally published as Weight Lifting Exercise ([WLE data set](http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har)) by @10.1145/2459236.2459256. The sample and the quiz data sets were provided as separate .csv (comma-separated values) files and read into R using the standard "read.csv" tool.
+
+```{r import_prepro, echo=TRUE, cache=TRUE}
+
+sample <- read.csv("pml-training.csv", na.string=c("NA", "#DIV/0!", ""))
+quiz <- read.csv("pml-testing.csv", na.string=c("NA", "#DIV/0!", ""))
+
+ncol_nonprocessed <- ncol(sample)
+
+# Columns with metadata that are not relevant to prediction are removed
+sample <- sample[,-c(1:7)]
+quiz <- quiz[,-c(1:7)]
+
+# Columns with NAs in sample are removed in sample and quiz
+
+sample <- sample[ , colSums(is.na(sample))==0]
+
+intersect <- intersect(names(sample), names(quiz))
+quiz <- quiz[ , intersect]
+
+# The classe variable is converted from character into a factor
+
+sample$classe <- as.factor(sample$classe)
+
+ncol_processed <- ncol(sample)
+
+```
+
+The first seven columns containing metadata were removed, and only columns without NAs were retained. This reduced the number of variables in the sample data set from `r ncol_nonprocessed` to `r ncol_processed`. There are `r length(sample$roll_belt)` observations in each of the variables.
+
+```{r feature_plot, fig.width=10.5, cache=TRUE}
+
+featurePlot(x = sample[, 10:24], y = sample$classe,
+            scales = list(x = list(relation="free"), 
+                          y = list(relation="free")))
+
+```
+
+A feature plot indicated that the sample data set contained continuous and clustered data. In the plot the variables 10 through 24 are shown as example. It appears that classification algorithms would be suitable to create models for prediction of the data set.    
+
+# Data analysis
+
+The sample data were split into a training data set (75% of the data) and a testing data set (25% of the data).
+
+```{r split, cache=TRUE}
+
+set.seed(5322)
+
+# Create a data partition with 75:25 ratio of training:testing
+inTrain <- createDataPartition(y=sample$classe, p=0.75, list=FALSE)
+
+# Split sample set into training and testing data sets
+train <- sample[inTrain,]
+test <- sample[-inTrain,]
+
+```
+
+Three classification algorithms were tried: Support Vector Machines, Gradient Boosting, and Random Forest. The in-sample and out-of-sample prediction accuracy of the algorithms was compared.
+
+```{r svmL, cache=TRUE}
+
+#Linear support vector machine algorithm, model is cached
+fitControl_svmL <- trainControl(method="repeatedcv", number=10, repeats=3)
+Fit_svmL <- train(classe~., data=train, method = "svmLinear", trControl = fitControl_svmL,  preProcess = c("center","scale"))
+
+# Training data set predictions and accuracy
+pred_train_svmL <- predict(Fit_svmL, train)
+accu_train_svmL <- confusionMatrix(train$classe, pred_train_svmL)$overall[1]
+
+# Testing data set predictions and accuracy
+pred_test_svmL <- predict(Fit_svmL, test)
+accu_test_svmL<- confusionMatrix(test$classe, pred_test_svmL)$overall[1]
+
+Fit_svmL$finalModel
+
+```
+
+
+```{r gbm, cache=TRUE}
+
+# Gradient Boosting Machine, model is cached
+fitControl_gbm <- trainControl(method="repeatedcv", number=3, verboseIter=FALSE)
+Fit_gbm <- train(classe~., data=train, method="gbm", trControl=fitControl_gbm, verbose=FALSE)
+
+# Training data set predictions and accuracy
+pred_train_gbm <- predict(Fit_gbm, train)
+accu_train_gbm <- confusionMatrix(train$classe, pred_train_gbm)$overall[1]
+
+# Testing data set predictions and accuracy
+pred_test_gbm <- predict(Fit_gbm, test)
+accu_test_gbm <- confusionMatrix(test$classe, pred_test_gbm)$overall[1]
+
+Fit_gbm$finalModel
+
+```
+
+
+```{r randomforrest, cache = TRUE}
+
+#Random Forest algorithm, model is cached
+fitControl_rf <- trainControl(method="cv", number=3, verboseIter=FALSE)
+Fit_rf <- train(classe~., data=train, method="rf", trControl=fitControl_rf, verbose=FALSE)
+
+# Training data set predictions and accuracy
+pred_train_rf <- predict(Fit_rf, train)
+accu_train_rf <- confusionMatrix(train$classe, pred_train_rf)$overall[1]
+
+# Testing data set predictions and accuracy
+pred_test_rf <- predict(Fit_rf, test)
+accu_test_rf <- confusionMatrix(test$classe, pred_test_rf)$overall[1]
+
+Fit_rf$finalModel
+
+```
+```{r model_comp}
+
+Models <- c("Support Vector Machines", "Gradient Boosting", "Random Forest")
+
+InSampAccu <- c(accu_train_svmL, accu_train_gbm, accu_train_rf)
+
+OutSampAccu <- c(accu_test_svmL, accu_test_gbm, accu_test_rf)
+
+Accuracy_Comp <- data.frame(Model = Models, "In-sample accuracy" = InSampAccu, "Out-of-sample accuracy" = OutSampAccu)
+
+Accuracy_Comp
+
+```
+The random forest model has the highest in-sample and out-of sample accuracy. 
+
+# Quiz
+
+The random forest model was used for prediction of the quiz data set since the high out-of-sample accuracy gives a good likelihood of correct prediction. 
+
+```{r quiz, cache=TRUE}
+
+quiz <- predict(Fit_rf, quiz)
+
+quiz
+
+```
+
+# References{-}
